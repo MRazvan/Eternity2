@@ -53,7 +53,6 @@ std::shared_ptr<t_piece_matrix_vector> distribute_pieces(const std::shared_ptr<t
     // how many vectors do we need per cell type?
     // we need max_color * max_color vectors
     // Calculate the matrix size as a power of two for better memory alignment
-    // The matrix is (max_color + 1) * (max_color + 1), HARD CODE IT TO 32*32 SINCE THE PUZZLES WE HAVE ARE WITHIN THIS LIMIT
     uint32_t cell_type_matrix_size = static_cast<uint32_t>((puzzle_data->max_color + 1) * (puzzle_data->max_color + 1));
     // We need CELL_TYPE::MAX matrices, one for each cell type
     auto total_entries = static_cast<uint32_t>(CELL_TYPE::MAX) * cell_type_matrix_size;
@@ -65,7 +64,6 @@ std::shared_ptr<t_piece_matrix_vector> distribute_pieces(const std::shared_ptr<t
     piece_vector->cell_type_offset = cell_type_matrix_size;
     piece_vector->stride = puzzle_data->max_color + 1;
 
-    //const auto dummy_vector = new t_piece_vector();
     // Initialize the pointers
     for (uint32_t i = 0; i < total_entries; ++i) {
         piece_vector->pieces[i] = nullptr;
@@ -74,7 +72,6 @@ std::shared_ptr<t_piece_matrix_vector> distribute_pieces(const std::shared_ptr<t
     // Add the pieces to the matrix
     for (uint32_t i = 0; i < puzzle_data->width * puzzle_data->height; ++i) {
         const t_piece& piece = puzzle_data->pieces[i];
-        // Add the "CORNER" pieces first including rotations
         add_piece(0, piece_vector, piece, COLOR_DIRECTION::LEFT, COLOR_DIRECTION::TOP, COLOR_DIRECTION::RIGHT, COLOR_DIRECTION::BOTTOM);
         add_piece(1, piece_vector, piece, COLOR_DIRECTION::TOP, COLOR_DIRECTION::RIGHT, COLOR_DIRECTION::BOTTOM, COLOR_DIRECTION::LEFT);
         add_piece(2, piece_vector, piece, COLOR_DIRECTION::RIGHT, COLOR_DIRECTION::BOTTOM, COLOR_DIRECTION::LEFT, COLOR_DIRECTION::TOP);

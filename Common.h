@@ -99,8 +99,6 @@ typedef PACK(ALIGN(32) struct
 {
     // A pointer to the matrix containing all possible "LEFT / TOP" vector combinations for this cell type
     t_piece_vector** pieces;
-    // What kind of cell is this, border/ corner / inner
-    CELL_TYPE::CELL_TYPE type;
     // Obvious
     t_piece_identifier identifier;
     // Obvious

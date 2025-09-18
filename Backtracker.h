@@ -33,7 +33,7 @@ void backtrack(t_board& board, uint32_t cell_index = 0) {
     {
         board.total_checked_nodes++;
 
-        //// Check if the piece is used already
+        // Check if the piece is used already
         if (board.used_pieces[piece.identifier.index])
             continue; // Piece already used
 

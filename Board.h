@@ -43,26 +43,21 @@ t_board_ptr create_board(const std::shared_ptr<t_PuzzleData>& puzzleData, const 
 
     // Initialize all cells to a known value
     for (uint32_t idx = 0; idx < board->total_cells; ++idx) {
-        board->cells[idx].type = CELL_TYPE::INNER;
         board->cells[idx].right_cell_offset = static_cast<uint16_t>(idx + 1);
         board->cells[idx].bottom_cell_offset = static_cast<uint16_t>(idx + board->cells_stride);
+        board->cells[idx].pieces = &piece_matrix_vector->pieces[CELL_TYPE::INNER * piece_matrix_vector->cell_type_offset];
     }
 
     for (uint32_t idx = 0; idx < puzzleData->width; ++idx) {
         auto cellIdx = get_idx(idx, puzzleData->height - 1, puzzleData->width);
-        board->cells[cellIdx].type = CELL_TYPE::BORDER_BOTTOM;
         board->cells[cellIdx].bottom_cell_offset = dummy_cell_index;
+        board->cells[cellIdx].pieces = &piece_matrix_vector->pieces[CELL_TYPE::BORDER_BOTTOM * piece_matrix_vector->cell_type_offset];
     }
 
     for (uint32_t idx = 0; idx < puzzleData->height; ++idx) {
         auto cellIdx = get_idx(puzzleData->width - 1, idx, puzzleData->width);
-        board->cells[cellIdx].type = CELL_TYPE::BORDER_RIGHT;
         board->cells[cellIdx].right_cell_offset = dummy_cell_index;
-    }
-
-    // Update the cell type offset
-    for (uint32_t idx = 0; idx < board->total_cells; ++idx) {
-        board->cells[idx].pieces = &piece_matrix_vector->pieces[board->cells[idx].type * piece_matrix_vector->cell_type_offset];
+        board->cells[cellIdx].pieces = &piece_matrix_vector->pieces[CELL_TYPE::BORDER_RIGHT * piece_matrix_vector->cell_type_offset];
     }
 
     return t_board_ptr(board);
@@ -72,7 +67,7 @@ void copy_cells(t_board& board) {
     memcpy(&board.cells[board.actual_total_cells], &board.cells[0], sizeof(t_cell) * (board.actual_total_cells));
 }
 
-/// This will not instantly stop the backtracking thread but it will stop it as soon as possible, again it is not exact but it is close enough
+// This will not instantly stop the backtracking thread but it will stop it as soon as possible, again it is not exact but it is close enough
 void  stop_board(t_board& board) {
    // Now update the board to stop the backtracking
    memset(board.used_pieces, 0xFF, sizeof(board.used_pieces));
