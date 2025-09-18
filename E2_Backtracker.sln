@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36221.1 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "E2_Backtracker", "E2_Backtracker.vcxproj", "{B07F9FF6-17CD-46A5-BA39-0CF51A953B7D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B07F9FF6-17CD-46A5-BA39-0CF51A953B7D}.Debug|x64.ActiveCfg = Debug|x64
+		{B07F9FF6-17CD-46A5-BA39-0CF51A953B7D}.Debug|x64.Build.0 = Debug|x64
+		{B07F9FF6-17CD-46A5-BA39-0CF51A953B7D}.Debug|x86.ActiveCfg = Debug|Win32
+		{B07F9FF6-17CD-46A5-BA39-0CF51A953B7D}.Debug|x86.Build.0 = Debug|Win32
+		{B07F9FF6-17CD-46A5-BA39-0CF51A953B7D}.Release|x64.ActiveCfg = Release|x64
+		{B07F9FF6-17CD-46A5-BA39-0CF51A953B7D}.Release|x64.Build.0 = Release|x64
+		{B07F9FF6-17CD-46A5-BA39-0CF51A953B7D}.Release|x86.ActiveCfg = Release|Win32
+		{B07F9FF6-17CD-46A5-BA39-0CF51A953B7D}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {420B4B59-39DA-4AD4-AEAB-D5FB5D6C152F}
+	EndGlobalSection
+EndGlobal
