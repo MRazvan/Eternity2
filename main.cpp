@@ -120,7 +120,7 @@ int main(const int argc, const char* argv[])
     std::cout << std::format("\nWork completed. Used {} thread(s)\n", thread_data->size());
 
     std::cout << std::format("Total solutions: {}. Total placed nodes: {}. Total checked nodes: {}\n", 
-        format_number_human_readable(total_statistics.total_solutions),
+        total_statistics.total_solutions.load(),
         format_number_human_readable(total_statistics.total_nodes_placed),
         format_number_human_readable(total_statistics.total_nodes_checked));
 
@@ -147,9 +147,12 @@ int main(const int argc, const char* argv[])
     // Cleanup
     for(auto& data : *thread_data) {
         auto user_data = static_cast<t_board_user_data*>(data.board->user_data);
-        delete user_data;
+        if (user_data != nullptr)
+            delete user_data;
+
         data.board->user_data = nullptr;
-        _aligned_free(data.board);
+        if (data.board != nullptr)
+            _aligned_free(data.board);
     }
 
     // We need to free the piece vectors

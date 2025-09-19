@@ -1,5 +1,8 @@
 #pragma once
 
+#include <functional>
+#include <vector>
+
 #include "Common.h"
 #include "ThreadSafeQueue.h"
 #include "Board.h"
@@ -46,6 +49,41 @@ void merge_values(const t_piece_vector& extra_pieces, std::vector<t_piece_vector
     existing_pieces.insert(existing_pieces.begin(), new_existing_pieces.begin(), new_existing_pieces.end());
 }
 
+void backtrack_generator(t_board& board, uint32_t cell_index, std::vector<t_precalculated_piece>& piece_stack, const std::function<void(const std::vector<t_precalculated_piece>& pieces)>& callback, uint32_t max_depth) {
+    // If we reached the end of the board, we are done
+    if (cell_index == max_depth) {
+        callback(piece_stack);
+        return;
+    }
+
+    auto& cell = board.cells[cell_index];
+    // Get the vector responsible for the current cell
+    const auto pieces = cell.pieces[cell.left_color + cell.top_color];
+    if (pieces == nullptr || board.done)
+        return;
+
+    // Loop through all possible pieces and do the stuff we need to do
+    for (const auto& piece : *pieces)
+    {
+        // Check if the piece is used already
+        if (board.used_pieces[piece.identifier.index])
+            continue; // Piece already used
+        piece_stack.push_back(piece);
+        // Update some basic and really important information
+        cell.identifier = piece.identifier;
+        board.cells[cell.right_cell_offset].left_color = piece.right;
+        board.cells[cell.bottom_cell_offset].top_color = piece.bottom;
+        // Mark the piece as used
+        board.used_pieces[piece.identifier.index] = true;
+        // Classic recursive backtrack
+        backtrack_generator(board, cell_index + 1, piece_stack, callback, max_depth);
+        // Release the piece for usage
+        board.used_pieces[piece.identifier.index] = false;
+        piece_stack.pop_back();
+    }
+}
+
+
 void generate_thread_data(
     const std::shared_ptr<t_PuzzleData>& puzzle_data,
     t_piece_matrix_vector* piece_vector_matrix, 
@@ -60,37 +98,34 @@ void generate_thread_data(
     // Generate all the starting pieces we can use
     {
         min_combinations = std::min(std::thread::hardware_concurrency() - 1, min_combinations);
-        t_piece_vector next_starting_pieces;
-        const auto corner_pieces = piece_vector_matrix->pieces[CELL_TYPE::INNER + 0 + 0];
-        const auto first_corner_piece = corner_pieces->at(0);
+        std::vector<t_precalculated_piece> piece_stack;
 
-        next_starting_pieces.push_back(first_corner_piece);
-        merge_values(next_starting_pieces, starting_pieces);
+        uint32_t depth = 1;
+        uint32_t max_iterations = 20;
+        while(starting_pieces.size() < min_combinations && depth < puzzle_data->width && max_iterations-- > 0)
+        {
+            starting_pieces.clear();
 
-        int32_t max_iterations = 20; // Just in case we get stuck in an infinite loop
+            auto board = create_board(puzzle_data, piece_vector_matrix);
+            // Start with the first corner piece set
+            const auto& corner_piece = piece_vector_matrix->pieces[CELL_TYPE::INNER]->at(0);
+            auto& cell = board->cells[0];
+            cell.identifier = corner_piece.identifier;
+            board->cells[cell.right_cell_offset].left_color = corner_piece.right;
+            board->cells[cell.bottom_cell_offset].top_color = corner_piece.bottom;
+            board->used_pieces[corner_piece.identifier.index] = true;
+            piece_stack.clear();
+            piece_stack.push_back(corner_piece);
 
-        while (starting_pieces.size() < min_combinations && max_iterations-- > 0) {
-            const auto last_piece = starting_pieces.at(0).back();
-            // We need to expand the starting pieces
-            const auto right_pieces = piece_vector_matrix->pieces[CELL_TYPE::INNER + last_piece.right];
-            t_piece_vector next_starting_pieces;
-            for (const auto piece : *right_pieces) {
-                next_starting_pieces.push_back(piece);
-            }
-            merge_values(next_starting_pieces, starting_pieces);
+            backtrack_generator(*board, 1, piece_stack, [&starting_pieces](const auto& pieces) {
+                t_piece_vector pieces_vector;
+                std::copy(pieces.begin(), pieces.end(), std::back_inserter(pieces_vector));
+                starting_pieces.push_back(pieces_vector);
+            }, depth);
+            _aligned_free(board);
+            depth++;
         }
     }
-    
-    std::cout << "Generated " << starting_pieces.size() << " starting piece sets\n";
-    //// Print the starting pieces we generated for each set
-    //auto set_idx = 0;
-    //for (const auto& pieces : starting_pieces) {
-    //    std::cout << std::format("Starting pieces for set {:3}: ", set_idx++);
-    //    for (const auto& piece : pieces) {
-    //        std::cout << std::format(" {} ", piece.identifier);
-    //    }
-    //    std::cout << "\n";
-    //}
 
     auto work_queue = std::make_shared<ThreadSafeQueue<t_piece_vector>>();
     for (const auto& pieces : starting_pieces) {
