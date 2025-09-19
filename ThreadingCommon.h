@@ -82,15 +82,15 @@ void generate_thread_data(
     }
     
     std::cout << "Generated " << starting_pieces.size() << " starting piece sets\n";
-    // Print the starting pieces we generated for each set
-    auto set_idx = 0;
-    for (const auto& pieces : starting_pieces) {
-        std::cout << std::format("Starting pieces for set {:3}: ", set_idx++);
-        for (const auto& piece : pieces) {
-            std::cout << std::format(" {} ", piece.identifier);
-        }
-        std::cout << "\n";
-    }
+    //// Print the starting pieces we generated for each set
+    //auto set_idx = 0;
+    //for (const auto& pieces : starting_pieces) {
+    //    std::cout << std::format("Starting pieces for set {:3}: ", set_idx++);
+    //    for (const auto& piece : pieces) {
+    //        std::cout << std::format(" {} ", piece.identifier);
+    //    }
+    //    std::cout << "\n";
+    //}
 
     auto work_queue = std::make_shared<ThreadSafeQueue<t_piece_vector>>();
     for (const auto& pieces : starting_pieces) {

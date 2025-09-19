@@ -10,6 +10,7 @@ void print_piece_solution(std::ostream* stream, const t_board& board, bool secon
     // Print the pieces from the cell
     const auto width = static_cast<int32_t>(board.cells_stride);
     const auto height = static_cast<int32_t>(board.total_cells / width);
+    (*stream) << "\n";
     for (auto y = 0; y < height; ++y) {
         for (auto x = 0; x < width; ++x)
         {
@@ -23,7 +24,7 @@ void print_piece_solution(std::ostream* stream, const t_board& board, bool secon
         (*stream) << "\n";
     }
     (*stream) << "\n";
-    stream->flush();
+    (*stream).flush();
 }
 
 void print_url(std::ostream* stream, const t_board& board, const t_puzzle_data_ptr puzzle)
@@ -39,7 +40,7 @@ void print_url(std::ostream* stream, const t_board& board, const t_puzzle_data_p
     */
     static const char* hex_chars = "abcdefghijklmnopqrstuvwxyz";
 
-    (*stream) << "https://e2.bucas.name/#puzzle=work_in_progress";
+    (*stream) << "\nhttps://e2.bucas.name/#puzzle=work_in_progress";
     (*stream) << "&board_w=" << (*puzzle)->width;
     (*stream) << "&board_h=" << (*puzzle)->height;
     (*stream) << "&board_edges=";
@@ -73,5 +74,5 @@ void print_url(std::ostream* stream, const t_board& board, const t_puzzle_data_p
 
 
     (*stream) << "\n";
-    stream->flush();
+    (*stream).flush();
 }

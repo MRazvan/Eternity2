@@ -28,13 +28,11 @@ void handle_board_solution(t_board& board) {
     if (user_data->options->Bucas) {
         copy_cells(board);
         print_url(&std::cout, board, user_data->puzzleData);
-        return;
     }
 
     if (user_data->options->DisplayOnConsole) {
         copy_cells(board);
         print_piece_solution(&std::cout, board, true);
-        return;
     }
 }
 
@@ -49,7 +47,6 @@ int main(const int argc, const char* argv[])
         std::cout << options.help();  // NOLINT(clang-diagnostic-format-security)
         return RETURN_ERR;
     }
-    
 
     //////////////////////////////////////////////////////////////////
     // Load the puzzle data if possible
@@ -75,7 +72,7 @@ int main(const int argc, const char* argv[])
     const auto actual_max_threads = std::max<int64_t>(1, std::min(optionsData->MaxThreads, max_threads));
     std::cout << std::format("Using up to {} thread(s)\n", actual_max_threads);
 
-    // We need a sync object to coordinate printing
+    // We need a sync object to coordinate printing and stopping
     auto sync = std::make_shared<t_sync_data>();
     auto thread_data = std::make_shared<std::vector<t_thread_data>>();
     // Generate the needed thread data
@@ -88,7 +85,7 @@ int main(const int argc, const char* argv[])
     );
     std::cout << std::format("Created data for {} thread(s)\n",thread_data->size());
 
-    // We need to attach to each thread data board a callback that will be called when a solution is found
+    // Now we can start the threads
     t_statistics_data total_statistics;
     {
         for(auto& data : *thread_data) {
@@ -120,32 +117,30 @@ int main(const int argc, const char* argv[])
         sync->done = true;
     }
 
-    std::cout << "All work completed\n";
+    std::cout << std::format("\nWork completed. Used {} thread(s)\n", thread_data->size());
 
     std::cout << std::format("Total solutions: {}. Total placed nodes: {}. Total checked nodes: {}\n", 
-        total_statistics.total_solutions.load(), 
-        total_statistics.total_nodes_placed.load(), 
-        total_statistics.total_nodes_checked.load());
-
-    std::cout << std::format("Used {} thread(s)\n", thread_data->size());
+        format_number_human_readable(total_statistics.total_solutions),
+        format_number_human_readable(total_statistics.total_nodes_placed),
+        format_number_human_readable(total_statistics.total_nodes_checked));
 
     // Display some timing information
     std::cout << std::format("Total time: {}. Total clock cycles: {}\n",
         format_duration(total_statistics.end_time - total_statistics.start_time),
-        total_statistics.end_clock_cycles - total_statistics.start_clock_cycles);
+        format_number_human_readable(total_statistics.end_clock_cycles - total_statistics.start_clock_cycles));
 
     // How many nodes per second did we place?
     const auto total_seconds = std::chrono::duration_cast<std::chrono::seconds>(total_statistics.end_time - total_statistics.start_time).count();
     if (total_seconds > 0) {
         std::cout << std::format("Average nodes placed per second: {}. Average nodes checked per second: {}\n",
-            total_statistics.total_nodes_placed.load() / total_seconds,
-            total_statistics.total_nodes_checked.load() / total_seconds);
+            format_number_human_readable(total_statistics.total_nodes_placed / total_seconds),
+            format_number_human_readable(total_statistics.total_nodes_checked / total_seconds));
     }
     // How many clock cycles per placed node and checked node?
     if (total_statistics.total_nodes_placed > 0) {
-        std::cout << std::format("Average clock cycles per placed node: {}. Average clock cycles per checked node: {}\n",
-            static_cast<double>(total_statistics.end_clock_cycles - total_statistics.start_clock_cycles) / total_statistics.total_nodes_placed.load(),
-            static_cast<double>(total_statistics.end_clock_cycles - total_statistics.start_clock_cycles) / total_statistics.total_nodes_checked.load());
+        std::cout << std::format("Average clock cycles per placed node: {:.2}. Average clock cycles per checked node: {:.2}\n",
+            static_cast<double>(total_statistics.end_clock_cycles - total_statistics.start_clock_cycles) / total_statistics.total_nodes_placed,
+            static_cast<double>(total_statistics.end_clock_cycles - total_statistics.start_clock_cycles) / total_statistics.total_nodes_checked);
     }
 
 

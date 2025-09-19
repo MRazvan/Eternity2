@@ -20,14 +20,9 @@ uint32_t apply_hint_pieces(t_piece_vector& hints, t_board* board) {
     uint32_t cell_index = 0;
     for (const auto& piece : hints) {
         auto& cell = board->cells[cell_index++];
-        // Check if the piece is used already
-        if (board->used_pieces[piece.identifier.index])
-            continue; // Piece already used
-        // Update some basic and really important information
         cell.identifier = piece.identifier;
         board->cells[cell.right_cell_offset].left_color = piece.right;
         board->cells[cell.bottom_cell_offset].top_color = piece.bottom;
-        // Mark the piece as used
         board->used_pieces[piece.identifier.index] = true;
     }
     return cell_index;
@@ -63,7 +58,7 @@ void reporting_thread(
     const auto inital_number_of_work_items = thread_data->at(0).workQueue->size();
     // We will report every second the total number of solutions and nodes placed
     // Go through each thread data and sum up the values
-    while (!sync->done.load()) {
+    while (!sync->done) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         const auto remaining_work_items = thread_data->at(0).workQueue->size();
 
@@ -85,12 +80,12 @@ void reporting_thread(
         std::string stopped_threads_str(thread_data->size() - running_threads, '.');
 
 
-        const auto str = std::format("\rSolutions: {}. Stats: {} pps | {} cps | {} placed | {} checked {}/{}  \033[32m{}\033[31m{}\033[0m",
+        const auto str = std::format("\rSolutions: {}. Stats: {} pps | {} cps | {} placed | {} checked. Sets remaining {}/{}. Workers: \033[32m{}\033[31m{}\033[0m",
             last_statistics.total_solutions.load(),
             format_number_human_readable(diff_nodes_placed),
             format_number_human_readable(diff_nodes_checked),
-            format_number_human_readable(last_statistics.total_nodes_placed.load()),
-            format_number_human_readable(last_statistics.total_nodes_checked.load()),
+            format_number_human_readable(last_statistics.total_nodes_placed),
+            format_number_human_readable(last_statistics.total_nodes_checked),
             remaining_work_items,
             inital_number_of_work_items,
             running_threads_str,
