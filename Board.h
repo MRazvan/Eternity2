@@ -1,8 +1,7 @@
 #pragma once
+
 #include <memory>
 #include "Common.h"
-
-typedef std::shared_ptr<t_board> t_board_ptr;
 
 /// <summary>
 ///  The board has one extra cell that is used as a dummy cell
@@ -23,10 +22,8 @@ typedef std::shared_ptr<t_board> t_board_ptr;
 /// <param name="piece_matrix_vector"></param>
 /// <returns></returns>
 INLINE
-t_board_ptr create_board(const std::shared_ptr<t_PuzzleData>& puzzleData, const std::shared_ptr<t_piece_matrix_vector>& piece_matrix_vector) {
+t_board* create_board(const std::shared_ptr<t_PuzzleData>& puzzleData, t_piece_matrix_vector* piece_matrix_vector) {
     auto memorySize = sizeof(t_board) + 2 /* Two sets of cells */ * (sizeof(t_cell) * puzzleData->width * puzzleData->height + 1);
-    std::cout << "Allocating board with " << memorySize << " bytes\n";
-
     auto board = static_cast<t_board*>(_aligned_malloc(memorySize, 4096));
     if (!board) {
         return nullptr; // Memory allocation failed
@@ -60,15 +57,14 @@ t_board_ptr create_board(const std::shared_ptr<t_PuzzleData>& puzzleData, const 
         board->cells[cellIdx].pieces = &piece_matrix_vector->pieces[CELL_TYPE::BORDER_RIGHT * piece_matrix_vector->cell_type_offset];
     }
 
-    return t_board_ptr(board);
+    return board;
 }
 
 void copy_cells(t_board& board) {
     memcpy(&board.cells[board.actual_total_cells], &board.cells[0], sizeof(t_cell) * (board.actual_total_cells));
 }
 
-// This will not instantly stop the backtracking thread but it will stop it as soon as possible, again it is not exact but it is close enough
+
 void  stop_board(t_board& board) {
-   // Now update the board to stop the backtracking
-   memset(board.used_pieces, 0xFF, sizeof(board.used_pieces));
+    board.done = true;
 }

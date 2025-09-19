@@ -138,12 +138,14 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Backtracker.h" />
     <ClInclude Include="Board.h" />
     <ClInclude Include="cxxopts.hpp" />
+    <ClInclude Include="Formatters.h" />
     <ClInclude Include="Options.h" />
     <ClInclude Include="PieceMatrix.h" />
     <ClInclude Include="Common.h" />
@@ -152,6 +154,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClInclude Include="ThreadingCommon.h" />
+    <ClInclude Include="ThreadSafeQueue.h" />
+    <ClInclude Include="ThreadWorker.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

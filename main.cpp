@@ -1,6 +1,9 @@
 ﻿#include <filesystem>
 #include <format>
 #include <iostream>
+#include <vector>
+#include <algorithm>
+#include <execution>
 #include <thread>
 
 #include "Backtracker.h"
@@ -10,11 +13,30 @@
 #include "PuzzleLoader.h"
 #include "PieceMatrix.h"
 #include "PrintUtils.h"
+#include "ThreadingCommon.h"
+#include "ThreadWorker.h"
 
 typedef struct {
     std::shared_ptr<t_options> options;
     std::shared_ptr<t_PuzzleData> puzzleData;
+    std::shared_ptr<t_sync_data> sync;
 } t_board_user_data;
+
+void handle_board_solution(t_board& board) {
+    auto user_data = static_cast<t_board_user_data*>(board.user_data);
+    std::lock_guard lock(user_data->sync->print_mutex);
+    if (user_data->options->Bucas) {
+        copy_cells(board);
+        print_url(&std::cout, board, user_data->puzzleData);
+        return;
+    }
+
+    if (user_data->options->DisplayOnConsole) {
+        copy_cells(board);
+        print_piece_solution(&std::cout, board, true);
+        return;
+    }
+}
 
 int main(const int argc, const char* argv[])
 {
@@ -46,84 +68,104 @@ int main(const int argc, const char* argv[])
     //  a cell in the matrix is going from 'left'*'top' to find the right vector that contains pieces for that particular
     //  left and top color combination
     auto piece_vector_matrix = distribute_pieces(puzzleData);
-    auto board = create_board(puzzleData, piece_vector_matrix);
 
-    //////////////////////////////////////////////////////////////////
-    // Do something with a solution
-    //  Either ignore it
-    //  Or save it to a file if we have the output file to save it
+    ////////////////////////////////////////////////////////////////////
+    // Create the threads and start the work
+    const auto max_threads = static_cast<int64_t>(std::thread::hardware_concurrency() - 1);
+    const auto actual_max_threads = std::max<int64_t>(1, std::min(optionsData->MaxThreads, max_threads));
+    std::cout << std::format("Using up to {} thread(s)\n", actual_max_threads);
+
+    // We need a sync object to coordinate printing
+    auto sync = std::make_shared<t_sync_data>();
+    auto thread_data = std::make_shared<std::vector<t_thread_data>>();
+    // Generate the needed thread data
+    generate_thread_data(
+        puzzleData,
+        piece_vector_matrix,
+        thread_data,
+        sync,
+        std::min(max_threads, optionsData->MaxThreads)
+    );
+    std::cout << std::format("Created data for {} thread(s)\n",thread_data->size());
+
+    // We need to attach to each thread data board a callback that will be called when a solution is found
+    t_statistics_data total_statistics;
     {
-        t_board_user_data* board_user_data = new t_board_user_data();
-        board_user_data->options = optionsData;
-        board_user_data->puzzleData = puzzleData;
-        board->user_data = board_user_data; // Store user data in the board
-        board->solution_callback = [](t_board& board)
+        for(auto& data : *thread_data) {
+            data.board->user_data = new t_board_user_data{
+                .options = optionsData,
+                .puzzleData = puzzleData,
+                .sync = sync
+            };
+            data.board->solution_callback = handle_board_solution;
+        }
+
+        std::cout << "Starting reporting thread\n";
+        std::jthread reporter([&]() {
+            reporting_thread(thread_data, total_statistics, sync, optionsData);
+        });
+
+        std::cout << "Starting worker threads\n";
+        // Now start the worker threads
+        total_statistics.start_time = std::chrono::high_resolution_clock::now();
+        total_statistics.start_clock_cycles = __rdtsc();
         {
-            auto user_data = static_cast<t_board_user_data*>(board.user_data);
-            if (user_data->options->FirstSolution) {
-                stop_board(board);
-            }
-            if (user_data->options->DisplayOnConsole) {
-                print_piece_solution(&std::cout, board);
-                if (user_data->options->Bucas) {
-                    copy_cells(board);
-                    print_url(&std::cout, board, user_data->puzzleData);
-                }
-            }
-        };
-    }
-
-    //////////////////////////////////////////////////////////////////
-    // Thread that reports once a second the progress
-    // Also keep track of the number of nodes per second we can place
-    std::thread statThread([](const t_board_ptr& board) {
-        auto user_data = static_cast<t_board_user_data*>(board->user_data);
-        uint64_t total_nodes = 0;
-        uint32_t last_depth = 0;
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-
-            // This is not really exact, as by the time we are reading total_placed_nodes the backtracking thread might have placed more nodes
-            // but it is close enough for what we need
-            const auto diff = board->total_placed_nodes - total_nodes;
-            total_nodes += diff;
-
-            const auto max_depth = board->max_depth;
-            std::cout << std::format("Total solutions: {}. Valid nodes per second: {}. Total placed nodes: {}. Best depth: {}\n", board->total_solutions, diff, board->total_placed_nodes, max_depth);
-
-            // Max depth changed, print the best solution so far
-            if (last_depth != max_depth) {
-                last_depth = max_depth;
-                print_piece_solution(&std::cout, (*board), true);
-                if (user_data->options->Bucas)
-                    print_url(&std::cout, (*board), user_data->puzzleData);
-            }
-
-            // Stop condition based on maximum placed nodes
-            if (user_data->options->MaxNodesToPlace > 0) {
-                if (board->total_placed_nodes >= static_cast<uint64_t>(user_data->options->MaxNodesToPlace))
-                    stop_board(*board);
+            std::vector<std::jthread> workers;
+            for (auto& data : *thread_data) {
+                workers.emplace_back(worker_thread, std::ref(data));
             }
         }
-    }, board);
-
-    //////////////////////////////////////////////////////////////////
-    // Finally the magic
-    {
-        TIMED_BLOCK("Backtracking");
-        const auto start = __rdtsc();
-
-            backtrack((*board));
-
-        const auto stop = __rdtsc();
-
-        const auto duration = stop - start;
-        const auto clocks_per_node_placed = duration / (board->total_placed_nodes ? board->total_placed_nodes : 1);
-        const auto clocks_per_node_checked = duration / (board->total_checked_nodes ? board->total_checked_nodes : 1);
-
-        std::cout << std::format("Total cycles: {}. Cycles per node placed: {}. Cycles per node checked: {}\n", duration, clocks_per_node_placed, clocks_per_node_checked);
+        total_statistics.end_clock_cycles = __rdtsc();
+        total_statistics.end_time = std::chrono::high_resolution_clock::now();
+        sync->done = true;
     }
 
-    std::cerr << std::format("Total solutions: {}. Total placed nodes: {}. Total checked nodes: {}\n", board->total_solutions, board->total_placed_nodes, board->total_checked_nodes);
+    std::cout << "All work completed\n";
+
+    std::cout << std::format("Total solutions: {}. Total placed nodes: {}. Total checked nodes: {}\n", 
+        total_statistics.total_solutions.load(), 
+        total_statistics.total_nodes_placed.load(), 
+        total_statistics.total_nodes_checked.load());
+
+    std::cout << std::format("Used {} thread(s)\n", thread_data->size());
+
+    // Display some timing information
+    std::cout << std::format("Total time: {}. Total clock cycles: {}\n",
+        format_duration(total_statistics.end_time - total_statistics.start_time),
+        total_statistics.end_clock_cycles - total_statistics.start_clock_cycles);
+
+    // How many nodes per second did we place?
+    const auto total_seconds = std::chrono::duration_cast<std::chrono::seconds>(total_statistics.end_time - total_statistics.start_time).count();
+    if (total_seconds > 0) {
+        std::cout << std::format("Average nodes placed per second: {}. Average nodes checked per second: {}\n",
+            total_statistics.total_nodes_placed.load() / total_seconds,
+            total_statistics.total_nodes_checked.load() / total_seconds);
+    }
+    // How many clock cycles per placed node and checked node?
+    if (total_statistics.total_nodes_placed > 0) {
+        std::cout << std::format("Average clock cycles per placed node: {}. Average clock cycles per checked node: {}\n",
+            static_cast<double>(total_statistics.end_clock_cycles - total_statistics.start_clock_cycles) / total_statistics.total_nodes_placed.load(),
+            static_cast<double>(total_statistics.end_clock_cycles - total_statistics.start_clock_cycles) / total_statistics.total_nodes_checked.load());
+    }
+
+
+    // Cleanup
+    for(auto& data : *thread_data) {
+        auto user_data = static_cast<t_board_user_data*>(data.board->user_data);
+        delete user_data;
+        data.board->user_data = nullptr;
+        _aligned_free(data.board);
+    }
+
+    // We need to free the piece vectors
+    for (uint32_t i = 0; i < static_cast<uint32_t>(CELL_TYPE::MAX) * piece_vector_matrix->cell_type_offset; ++i) {
+        // Free each vector if it was allocated
+        if (piece_vector_matrix->pieces[i] != nullptr) {
+            delete piece_vector_matrix->pieces[i];
+            piece_vector_matrix->pieces[i] = nullptr;
+        }
+    }
+    _aligned_free(piece_vector_matrix);
+
     return RETURN_OK;
 }

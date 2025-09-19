@@ -4,7 +4,7 @@
 #include "PuzzleLoader.h"
 
 INLINE
-void add_piece(uint8_t rotation, const std::shared_ptr<t_piece_matrix_vector>& piece_matrix_vector, const t_piece& piece, COLOR_DIRECTION::COLOR_DIRECTION left, COLOR_DIRECTION::COLOR_DIRECTION top, COLOR_DIRECTION::COLOR_DIRECTION right, COLOR_DIRECTION::COLOR_DIRECTION bottom) {
+void add_piece(uint8_t rotation, t_piece_matrix_vector* piece_matrix_vector, const t_piece& piece, COLOR_DIRECTION::COLOR_DIRECTION left, COLOR_DIRECTION::COLOR_DIRECTION top, COLOR_DIRECTION::COLOR_DIRECTION right, COLOR_DIRECTION::COLOR_DIRECTION bottom) {
     CELL_TYPE::CELL_TYPE cell_type = CELL_TYPE::INNER;
 
     const color_t
@@ -49,7 +49,7 @@ void add_piece(uint8_t rotation, const std::shared_ptr<t_piece_matrix_vector>& p
 }
 
 INLINE
-std::shared_ptr<t_piece_matrix_vector> distribute_pieces(const std::shared_ptr<t_PuzzleData>& puzzle_data) {
+t_piece_matrix_vector* distribute_pieces(const std::shared_ptr<t_PuzzleData>& puzzle_data) {
     // how many vectors do we need per cell type?
     // we need max_color * max_color vectors
     // Calculate the matrix size as a power of two for better memory alignment
@@ -59,8 +59,7 @@ std::shared_ptr<t_piece_matrix_vector> distribute_pieces(const std::shared_ptr<t
     auto total_memory_size = total_entries * sizeof(t_piece_vector*);
     std::cout << "Allocating piece matrix with " << total_memory_size << " bytes\n";
 
-    auto piece_vector_raw_ptr = static_cast<t_piece_matrix_vector*>(_aligned_malloc(total_memory_size, 4096));
-    auto piece_vector = std::shared_ptr<t_piece_matrix_vector>(piece_vector_raw_ptr);
+    auto piece_vector = static_cast<t_piece_matrix_vector*>(_aligned_malloc(total_memory_size, 4096));
     piece_vector->cell_type_offset = cell_type_matrix_size;
     piece_vector->stride = puzzle_data->max_color + 1;
 
