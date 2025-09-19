@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Board.h"
 #include "Common.h"
+#include "Formatters.h"
 
 INLINE
 void print_piece_solution(std::ostream* stream, const t_board& board, bool second_set = false)

@@ -70,20 +70,6 @@ typedef PACK(struct {
     uint8_t rotation;
 }) t_piece_identifier;
 
-// Custom formatter for the identifier block
-template<>
-struct std::formatter<t_piece_identifier> {
-
-    constexpr auto parse(std::format_parse_context& ctx) {
-        return ctx.begin();
-    }
-
-    auto format(const t_piece_identifier& identifier, std::format_context& ctx) const {
-        return std::format_to(ctx.out(), "{:3}({})", identifier.index, identifier.rotation);
-    };
-};
-
-
 typedef PACK(ALIGN(4) struct {
     // The right color that we have to use, this contains offsets into a piece array ( it's not just the color )
     uint32_t right;
@@ -139,6 +125,7 @@ typedef PACK(struct st_board
     uint64_t total_placed_nodes;
     // Total number of solutions
     uint64_t total_solutions;
+    bool done;
     // Used piece bitmask
     bool used_pieces[256];
     // Board cells
@@ -154,6 +141,31 @@ typedef struct {
     t_piece_vector* pieces[];
 } t_piece_matrix_vector;
 
+typedef struct {
+    std::atomic<uint64_t> total_solutions;
+    std::atomic<uint64_t> total_nodes_placed;
+    std::atomic<uint64_t> total_nodes_checked;
+    std::chrono::high_resolution_clock::time_point start_time;
+    std::chrono::high_resolution_clock::time_point end_time;
+    uint64_t start_clock_cycles;
+    uint64_t end_clock_cycles;
+} t_statistics_data;
+
+std::string format_duration(std::chrono::nanoseconds nanoseconds) {
+    const auto hrs = std::chrono::duration_cast<std::chrono::hours>(nanoseconds);
+    const auto mins = std::chrono::duration_cast<std::chrono::minutes>(nanoseconds - hrs);
+    const auto secs = std::chrono::duration_cast<std::chrono::seconds>(nanoseconds - hrs - mins);
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(nanoseconds - hrs - mins - secs);
+    const auto us = std::chrono::duration_cast<std::chrono::microseconds>(nanoseconds - hrs - mins - secs - ms);
+    const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(nanoseconds - hrs - mins - secs - ms - us);
+    return std::format("{}:{}:{} ({}.{}.{})", hrs, mins, secs, ms, us, ns);
+}
+
+FORCE_INLINE
+uint32_t get_idx(uint32_t x, uint32_t y, uint32_t width) {
+    return y * width + x;
+}
+
 // Why not mix a little bit of "class" action
 typedef struct timed_block
 {
@@ -161,13 +173,7 @@ typedef struct timed_block
     ~timed_block()
     {
         const auto total = std::chrono::high_resolution_clock::now() - m_start;
-        const auto hrs = std::chrono::duration_cast<std::chrono::hours>(total);
-        const auto mins = std::chrono::duration_cast<std::chrono::minutes>(total - hrs);
-        const auto secs = std::chrono::duration_cast<std::chrono::seconds>(total - hrs - mins);
-        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(total - hrs - mins - secs);
-        const auto us = std::chrono::duration_cast<std::chrono::microseconds>(total - hrs - mins - secs - ms);
-        const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(total - hrs - mins - secs - ms - us);
-        std::cout << std::format("{}: {}:{}:{} ({}.{}.{})\n", m_message, hrs, mins, secs, ms, us, ns);
+        std::cout << std::format("{}: {}\n", m_message, format_duration(total));
     }
     std::chrono::steady_clock::time_point m_start;
     std::string m_message;
@@ -175,7 +181,3 @@ typedef struct timed_block
 
 #define TIMED_BLOCK(message) t_timed_block var_timed_block_##__LINE__(message)
 
-FORCE_INLINE
-uint32_t get_idx(uint32_t x, uint32_t y, uint32_t width) {
-    return y * width + x;
-}

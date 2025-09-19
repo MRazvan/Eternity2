@@ -25,7 +25,7 @@ void backtrack(t_board& board, uint32_t cell_index = 0) {
     auto& cell = board.cells[cell_index];
     // Get the vector responsible for the current cell
     const auto pieces = cell.pieces[cell.left_color + cell.top_color];
-    if (pieces == nullptr)
+    if (pieces == nullptr || board.done)
         return;
 
     // Loop through all possible pieces and do the stuff we need to do
