@@ -44,6 +44,9 @@ t_puzzle_data_ptr Puzzle_Load(const std::string& puzzle_file)
         std::stringstream ss(firstLine);
         ss >> result->width >> result->height;
 
+        if (result->height == 0) {
+            result->height = result->width;
+        }
         if (!inputFile.good()) {
             return std::nullopt;
         }

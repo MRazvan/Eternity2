@@ -83,7 +83,7 @@ int main(const int argc, const char* argv[])
         sync,
         std::min(max_threads, optionsData->MaxThreads)
     );
-    std::cout << std::format("Created data for {} thread(s)\n",thread_data->size());
+    std::cout << std::format("Created data for {} thread(s)\n", actual_max_threads);
 
     // Now we can start the threads
     t_statistics_data total_statistics;

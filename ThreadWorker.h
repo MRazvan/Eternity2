@@ -75,7 +75,7 @@ void reporting_thread(
         // Get the total number of threads still running and create a string containing a . for each running thread
         const auto running_threads = std::count_if(std::execution::par, thread_data->begin(), thread_data->end(), [](const t_thread_data& data) {
             return data.is_running;
-            });
+        });
         std::string running_threads_str(running_threads, '.');
         std::string stopped_threads_str(thread_data->size() - running_threads, '.');
 
